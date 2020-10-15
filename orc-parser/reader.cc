@@ -1,4 +1,5 @@
 #include "orc/OrcFile.hh"
+#include "orc/ColumnPrinter.hh"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,35 +17,24 @@ void read(char *filename) {
 	ReaderOptions readerOpts;
 	ORC_UNIQUE_PTR<Reader> reader = createReader(std::move(inStream), readerOpts);
 
-	// Allocate the row reader
-	RowReaderOptions rowReaderOpts;
-    std::list<std::string> columns_to_read({"ss_sold_date_sk"});
-	rowReaderOpts.include(columns_to_read);
-	ORC_UNIQUE_PTR<RowReader> rowReader = reader->createRowReader(rowReaderOpts);
-
+	// Allocate the row reader	
+	RowReaderOptions rowReaderOptions;
+	ORC_UNIQUE_PTR<RowReader> rowReader = reader->createRowReader(rowReaderOptions);
 	ORC_UNIQUE_PTR<ColumnVectorBatch> batch = rowReader->createRowBatch(reader->getRowIndexStride());
 
-	StructVectorBatch *root = dynamic_cast<StructVectorBatch *>(batch.get());
-	LongVectorBatch *ss_sold_date_sk = NULL;
-	
-	// Get the column
-	const Type& rowReaderType = rowReader->getSelectedType();
-	for (uint64_t c = 0; c < rowReaderType.getSubtypeCount(); c++) {
-		if (!root->notNull[c])
-			continue;
-		
-		if (rowReaderType.getFieldName(c).compare("ss_sold_date_sk") == 0) {
-			ss_sold_date_sk = dynamic_cast<LongVectorBatch *>(root->fields[c]);
+	// Allocate the column printer
+	std::string line;
+	ORC_UNIQUE_PTR<ColumnPrinter> columnPrinter = createColumnPrinter(line, &(reader->getType()));
+
+	// Loop through and read each row	
+	while (rowReader->next(*batch)) {
+		columnPrinter->reset(*batch);
+		for (uint64_t i = 0; i < batch->numElements; i++) {
+			line.clear();
+			columnPrinter->printRow(i);
+			std::cout << line << "\n";
 		}
-	}	
-	
-	// Read through the rows to find the desired column
-	std::vector<bool> sel_col = rowReader->getSelectedColumns();
-	const Type& readerType = reader->getType();
-	for (uint64_t i = 1; i < sel_col.size(); i++) {
-		if (sel_col[i])
-			std::cout << readerType.getFieldName(i - 1) << ": " << ss_sold_date_sk->data[i] << "\n";
-	}	
+	}
 }
 
 int main(int argc, char *argv[]) {
