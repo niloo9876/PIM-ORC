@@ -1,0 +1,6 @@
+[submodule "orc"]
+	path = orc
+	url = https://github.com/apache/orc.git
+[submodule "snappy/pim-snappy/PIM-common"]
+	path = snappy/pim-snappy/PIM-common
+	url = https://github.com/UBC-ECE-Sasha/PIM-common.git

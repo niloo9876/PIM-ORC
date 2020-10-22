@@ -1,1 +1,6 @@
-*/build/*
+*/build/
+orc-parser/reader
+
+*.a
+*/CMakeCache.txt
+*.cmake
