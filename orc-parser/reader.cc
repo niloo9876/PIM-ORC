@@ -1,5 +1,5 @@
 #include "orc/OrcFile.hh"
-#include "orc/ColumnPrinter.hh"
+#include "orc/Statistics.hh"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,19 +22,15 @@ void read(char *filename) {
 	ORC_UNIQUE_PTR<RowReader> rowReader = reader->createRowReader(rowReaderOptions);
 	ORC_UNIQUE_PTR<ColumnVectorBatch> batch = rowReader->createRowBatch(reader->getRowIndexStride());
 
-	// Allocate the column printer
-	std::string line;
-	ORC_UNIQUE_PTR<ColumnPrinter> columnPrinter = createColumnPrinter(line, &(reader->getType()));
-
 	// Loop through and read each row	
+	uint64_t rows = 0;
+	uint64_t batches = 0;
 	while (rowReader->next(*batch)) {
-		columnPrinter->reset(*batch);
-		for (uint64_t i = 0; i < batch->numElements; i++) {
-			line.clear();
-			columnPrinter->printRow(i);
-			std::cout << line << "\n";
-		}
+		batches++;
+		rows += batch->numElements;
 	}
+	std::cout << "Rows: " << rows << "\n";
+	std::cout << "Batches: " << batches << "\n";
 }
 
 int main(int argc, char *argv[]) {
