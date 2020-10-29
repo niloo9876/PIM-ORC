@@ -17,11 +17,17 @@ args = parser.parse_args()
 path = args.PATH
 
 with open(path, "r") as f:
-        line = f.readline()
+	line = f.readline()
 	while (line):
 		line_delim = line.split(" ")
 		count = int(line_delim[-1])
-		
+	
+		# Bin different functions based on what operation they're doing. 
+		#
+		# Note the if statement hierarchy accounts for functions that call 
+		# other major functions. For example, the time spent on Snappy 
+		# decompression when called by the RLE decoder is only counted 
+		# towards Snappy decompression.	
 		if "orc::SnappyDecompressionStream::decompress" in line:
 			bins["Snappy Decompression"] += count
 		elif "orc::RleDecoderV2::next" in line:
@@ -30,13 +36,14 @@ with open(path, "r") as f:
 			bins["ColumnReader"] += count
 		elif "~" in line:
 			bins["Deinitialization"] += count
-		elif "protobuf" in line:
+		elif ("protobuf" in line) or ("create" in line):
 			bins["Initialization"] += count
 		else:
 			bins["Other"] += count
 
-                line = f.readline()
+		line = f.readline()
 
+# Calculate percentage of time spent on each action
 total_sum = sum(bins.values())
-for k, v in bins.iteritems():
-    print(k, "{:.2f}".format(float(v) / total_sum * 100))
+for k, v in bins.items():
+	print(k, "{:.2f}".format(float(v) / total_sum * 100))
