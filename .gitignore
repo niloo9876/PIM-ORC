@@ -1,6 +1,9 @@
+orc/
 */build/
 orc-parser/reader
 
+*perf*
 *.a
 */CMakeCache.txt
 *.cmake
+*.svg

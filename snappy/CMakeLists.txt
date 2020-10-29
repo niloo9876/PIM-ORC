@@ -202,6 +202,8 @@ target_sources(snappy
     "snappy-sinksource.cc"
     "snappy-stubs-internal.cc"
     "snappy.cc"
+	"pim-snappy/pim_snappy.c"
+	"pim-snappy/pim_snappy.h"
     "${PROJECT_BINARY_DIR}/config.h"
 
   # Only CMake 3.3+ supports PUBLIC sources in targets exported by "install".
@@ -219,6 +221,7 @@ target_include_directories(snappy
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>
 )
+
 set_target_properties(snappy
   PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
 
@@ -231,7 +234,7 @@ endif(BUILD_SHARED_LIBS)
 include(GNUInstallDirs)
 
 if(SNAPPY_INSTALL)
-  install(TARGETS snappy
+  install(TARGETS snappy 
     EXPORT SnappyTargets
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
@@ -239,7 +242,6 @@ if(SNAPPY_INSTALL)
   )
   install(
     FILES
-      "snappy-c.h"
       "snappy-sinksource.h"
       "snappy.h"
       "${PROJECT_BINARY_DIR}/snappy-stubs-public.h"

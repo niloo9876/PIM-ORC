@@ -1,12 +1,13 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <string.h>
 #include <limits.h>
 #include <getopt.h>
 
-#include "dpu_snappy.h"
-#include "common.h"
+#include "pim_snappy.h"
+#include "PIM-common/common/include/common.h"
 
 #define GET_ELEMENT_TYPE(_tag)  (_tag & BITMASK(2))
 #define GET_LENGTH_1_BYTE(_tag) ((_tag >> 2) & BITMASK(3))
@@ -29,7 +30,7 @@ typedef struct host_buffer_context
 {
     uint8_t *buffer;        // Entire buffer
     uint8_t *curr;          // Pointer to current location in buffer
-    unsigned long length;       // Length of buffer
+    uint32_t length;       // Length of buffer
 } host_buffer_context_t;
 
 /**
@@ -284,22 +285,22 @@ int host_uncompress(host_buffer_context_t *input, host_buffer_context_t *output)
 	return true;
 }
 
-int pim_uncompress(const char *compressed, size_t compressed_length, char *uncompressed) {
+int pim_decompress(const char *compressed, size_t compressed_length, char *uncompressed) {
 	// Setup input and output buffer contexts
 	host_buffer_context_t input = {
-		.buffer = compressed,
-		.curr   = compressed,
+		.buffer = (uint8_t *)compressed,
+		.curr   = (uint8_t *)compressed,
 		.length = compressed_length
 	};
 
 	host_buffer_context_t output = {
-		.buffer = uncompressed,
-		.curr   = uncompressed,
+		.buffer = (uint8_t *)uncompressed,
+		.curr   = (uint8_t *)uncompressed,
 		.length = 0
 	};
 
 	// Read the decompressed length
-	if (!read_varint32(input, &(ouptut.length))) {
+	if (!read_varint32(&input, &(output.length))) {
 		fprintf(stderr, "Failed to read decompressed length\n");
 		return false;
 	}
