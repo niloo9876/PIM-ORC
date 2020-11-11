@@ -11,6 +11,7 @@ clean:
 	rm ./reader
 	rm -rf build/
 
+SNAPPY_HOME := $(shell cd ../snappy; pwd)
 SNAPPY_LIB := ../build/snappy/libsnappy.a
 $(SNAPPY_LIB):
 	mkdir -p build
@@ -24,6 +25,7 @@ $(APACHE_ORC_LIB):
 	cp ../orc/c++/include/orc/orc-config.hh.in ../orc/c++/include/orc/orc-config.hh
 	sed -i 's/cmakedefine/define/g' ../orc/c++/include/orc/orc-config.hh
 	mkdir -p build
+	export SNAPPY_HOME=$(SNAPPY_HOME)
 	cd build && cmake -DBUILD_JAVA=OFF ../../orc && make -j4 package
 
 INCLUDES := -I../orc/c++/include -I../orc/c++/src -I../orc/c++/src/sargs -I../orc/c++/src/wrap -I $(shell pwd)

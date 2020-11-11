@@ -105,7 +105,7 @@ size_t MaxCompressedLength(size_t source_bytes) {
   //
   // The trailing literal sequence has a space blowup of at most 62/60
   // since a literal of length 60 needs one tag byte + one extra byte
-  // for length information.
+  // for leng
   //
   // Item blowup is trickier to measure.  Suppose the "copy" op copies
   // 4 bytes of data.  Because of a special check in the encoding code,
@@ -868,6 +868,7 @@ class SnappyDecompressor {
     // contains the tag.
     uint32_t preload;
     MAYBE_REFILL();
+
     for ( ;; ) {
       const uint8_t c = static_cast<uint8_t>(preload);
       ip++;
@@ -888,6 +889,7 @@ class SnappyDecompressor {
         size_t literal_length = (c >> 2) + 1u;
         if (writer->TryFastAppend(ip, ip_limit_ - ip, literal_length, &op)) {
           assert(literal_length < 61);
+
           ip += literal_length;
           // NOTE: There is no MAYBE_REFILL() here, as TryFastAppend()
           // will not return true unless there's already at least five spare
@@ -925,7 +927,7 @@ class SnappyDecompressor {
           const size_t copy_offset = LittleEndian::Load32(ip);
           const size_t length = (c >> 2) + 1;
           ip += 4;
-
+          
           if (!writer->AppendFromSelf(copy_offset, length, &op)) goto exit;
         } else {
           const uint32_t entry = char_table[c];
@@ -1399,6 +1401,8 @@ class SnappyArrayWriter {
 
 bool RawUncompress(const char* compressed, size_t compressed_length,
                    char* uncompressed) {
+  ByteArraySource reader(compressed, compressed_length);
+  //return RawUncompress(&reader, uncompressed);
   return (bool)pim_decompress(compressed, compressed_length, uncompressed);
 }
 

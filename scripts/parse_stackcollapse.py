@@ -4,8 +4,8 @@ import argparse
 
 bins = {"Initialization" : 0,
 		"ColumnReader" : 0,
-		"Snappy Decompression" : 0,
 		"RLE Decoder" : 0,
+		"Snappy Decompression" : 0,
 		"Deinitialization" : 0,
 		"Other" : 0}
 

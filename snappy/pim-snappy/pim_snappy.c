@@ -15,7 +15,7 @@
 #define GET_LENGTH_2_BYTE(_tag) ((_tag >> 2) & BITMASK(6))
 
 #define ALIGN_LONG(_p, _width) (((long)_p + (_width-1)) & (0-_width))
-
+int printa = 0;
 // Snappy tag types
 enum element_type
 {
@@ -142,7 +142,6 @@ static inline uint16_t make_offset_2_byte(uint8_t tag, struct host_buffer_contex
 static inline uint32_t make_offset_4_byte(uint8_t tag, struct host_buffer_context *input)
 {
     UNUSED(tag);
-
     uint32_t total = 0;
     if ((input->curr + sizeof(uint32_t)) > (input->buffer + input->length))
         return 0;
@@ -188,18 +187,16 @@ static void writer_append_host(struct host_buffer_context *input, struct host_bu
 static bool write_copy_host(struct host_buffer_context *output, uint32_t copy_length, uint32_t offset)
 {
     //printf("Copying %u bytes from offset=0x%lx to 0x%lx\n", copy_length, (output->curr - output->buffer) - offset, output->curr - output->buffer);
-    const uint8_t *copy_curr = output->curr;
-    copy_curr -= offset;
-    if (copy_curr < output->buffer)
+    const uint32_t diff = output->curr - output->buffer;
+    if (offset > diff)
     {
-        printf("bad offset!\n");
+        printf("bad offset! %u %u\n", offset, diff);
         return false;
     }
     while (copy_length &&
         output->curr < (output->buffer + output->length))
     {
-        *output->curr = *copy_curr;
-        copy_curr++;
+        *output->curr = *(output->curr - offset);
         output->curr++;
         copy_length -= 1;
     }
@@ -221,14 +218,14 @@ int host_uncompress(host_buffer_context_t *input, host_buffer_context_t *output)
 //		fprintf(stderr, "Failed to read decompressed block size\n");
 //		return false;
 //	}
-
-	while (input->curr < (input->buffer + input->length)) {
+	uint8_t*  input_end = input->buffer + input->length;	
+	while (input->curr < input_end) {
 		// Read the compressed block size
 //		uint32_t compressed_size = read_uint32(input);	
 //		uint8_t *block_end = input->curr + compressed_size;
 	
 //		while (input->curr != block_end) {	
-			uint16_t length;
+			uint32_t length;
 			uint32_t offset;
 			const uint8_t tag = *input->curr++;
 
@@ -286,6 +283,7 @@ int host_uncompress(host_buffer_context_t *input, host_buffer_context_t *output)
 }
 
 int pim_decompress(const char *compressed, size_t compressed_length, char *uncompressed) {
+	printf("DECOMPRESS %d bytes\n", compressed_length);
 	// Setup input and output buffer contexts
 	host_buffer_context_t input = {
 		.buffer = (uint8_t *)compressed,
