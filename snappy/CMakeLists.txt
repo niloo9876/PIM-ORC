@@ -92,6 +92,11 @@ option(SNAPPY_REQUIRE_AVX2 "Target processors with AVX2 support." OFF)
 
 option(SNAPPY_INSTALL "Install Snappy's header and library" ON)
 
+option(USE_PIM "Use the DPUs to execute Snappy" OFF)
+if (USE_PIM)
+	add_definitions(-DUSE_PIM=1)
+endif()
+
 include(TestBigEndian)
 test_big_endian(SNAPPY_IS_BIG_ENDIAN)
 

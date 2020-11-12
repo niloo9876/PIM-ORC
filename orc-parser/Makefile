@@ -11,12 +11,16 @@ clean:
 	rm ./reader
 	rm -rf build/
 
+NR_DPUS = 1
+NR_TASKLETS = 1
+USE_PIM = OFF
 SNAPPY_HOME := $(shell cd ../snappy; pwd)
 SNAPPY_LIB := ../build/snappy/libsnappy.a
 $(SNAPPY_LIB):
+	cd $(SNAPPY_HOME)/pim-snappy && make NR_DPUS=$(NR_DPUS) NR_TASKLETS=$(NR_TASKLETS)
 	mkdir -p build
 	cd build && mkdir -p snappy
-	cd build/snappy && cmake ../../../snappy && make
+	cd build/snappy && cmake -DUSE_PIM=$(USE_PIM) ../../../snappy && make 
 	cp build/snappy/snappy-stubs-public.h ../snappy
 	cp build/snappy/libsnappy.a ../snappy
 
@@ -25,8 +29,7 @@ $(APACHE_ORC_LIB):
 	cp ../orc/c++/include/orc/orc-config.hh.in ../orc/c++/include/orc/orc-config.hh
 	sed -i 's/cmakedefine/define/g' ../orc/c++/include/orc/orc-config.hh
 	mkdir -p build
-	export SNAPPY_HOME=$(SNAPPY_HOME)
-	cd build && cmake -DBUILD_JAVA=OFF ../../orc && make -j4 package
+	cd build && export SNAPPY_HOME=$(SNAPPY_HOME) && cmake -DBUILD_JAVA=OFF ../../orc && make -j4 package
 
 INCLUDES := -I../orc/c++/include -I../orc/c++/src -I../orc/c++/src/sargs -I../orc/c++/src/wrap -I $(shell pwd)
 LIBS = $(shell find . -name *.a)

@@ -1401,9 +1401,12 @@ class SnappyArrayWriter {
 
 bool RawUncompress(const char* compressed, size_t compressed_length,
                    char* uncompressed) {
+#if (USE_PIM == 0)
   ByteArraySource reader(compressed, compressed_length);
-  //return RawUncompress(&reader, uncompressed);
+  return RawUncompress(&reader, uncompressed);
+#else
   return (bool)pim_decompress(compressed, compressed_length, uncompressed);
+#endif
 }
 
 bool RawUncompress(Source* compressed, char* uncompressed) {
