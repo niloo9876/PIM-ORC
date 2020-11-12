@@ -1,5 +1,6 @@
 CC = g++
 CFLAGS = -std=c++17 -O3 -g -pthread -Wall 
+DPU_OPTS = `dpu-pkg-config --cflags --libs dpu` 
 SOURCE = reader.cc
 
 .PHONY: default all clean reader
@@ -14,13 +15,16 @@ clean:
 NR_DPUS = 1
 NR_TASKLETS = 1
 USE_PIM = OFF
+
 SNAPPY_HOME := $(shell cd ../snappy; pwd)
+DPU_PROGRAM := \"$(SNAPPY_HOME)/pim-snappy/decompress.dpu\"
+
 SNAPPY_LIB := ../build/snappy/libsnappy.a
 $(SNAPPY_LIB):
 	cd $(SNAPPY_HOME)/pim-snappy && make NR_DPUS=$(NR_DPUS) NR_TASKLETS=$(NR_TASKLETS)
 	mkdir -p build
 	cd build && mkdir -p snappy
-	cd build/snappy && cmake -DUSE_PIM=$(USE_PIM) ../../../snappy && make 
+	cd build/snappy && cmake -DUSE_PIM=$(USE_PIM) -DNR_DPUS=$(NR_DPUS) -DNR_TASKLETS=$(NR_TASKLETS) -DDPU_PROGRAM=$(DPU_PROGRAM) ../../../snappy && make 
 	cp build/snappy/snappy-stubs-public.h ../snappy
 	cp build/snappy/libsnappy.a ../snappy
 
@@ -35,4 +39,4 @@ INCLUDES := -I../orc/c++/include -I../orc/c++/src -I../orc/c++/src/sargs -I../or
 LIBS = $(shell find . -name *.a)
 
 reader: $(SOURCE) $(SNAPPY_LIB) $(APACHE_ORC_LIB)
-	$(CC) $(CFLAGS) -o $@ $(SOURCE) $(INCLUDES) $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE) $(INCLUDES) $(LIBS) $(DPU_OPTS)

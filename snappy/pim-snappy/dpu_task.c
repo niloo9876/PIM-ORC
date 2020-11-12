@@ -85,10 +85,12 @@ int main()
 		}
 	}
 
+	printf("%d %d %d\n", output.buffer[output.length - 1], output.buffer[output.length - 2], output.buffer[output.length - 3]);
+
 #ifdef COUNT_CYC
-	printf("Tasklet %d: %ld cycles, %d bytes\n", idx, perfcounter_get(), input.length);
+	printf("Tasklet %d: %ld cycles, %d bytes\n", idx, perfcounter_get(), output.length);
 #else
-	printf("Tasklet %d: %ld instructions, %d bytes\n", idx, perfcounter_get(), input.length);
+	printf("Tasklet %d: %ld instructions, %d bytes\n", idx, perfcounter_get(), output.length);
 #endif	
 	return 0;
 }

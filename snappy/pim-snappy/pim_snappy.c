@@ -6,6 +6,10 @@
 #include <limits.h>
 #include <getopt.h>
 
+#include <dpu.h>
+#include <dpu_memory.h>
+#include <dpu_log.h>
+
 #include "pim_snappy.h"
 #include "PIM-common/common/include/common.h"
 
@@ -15,7 +19,7 @@
 #define GET_LENGTH_2_BYTE(_tag) ((_tag >> 2) & BITMASK(6))
 
 #define ALIGN_LONG(_p, _width) (((long)_p + (_width-1)) & (0-_width))
-int printa = 0;
+
 // Snappy tag types
 enum element_type
 {
@@ -282,8 +286,84 @@ int host_uncompress(host_buffer_context_t *input, host_buffer_context_t *output)
 	return true;
 }
 
+/**
+ * Perform the Snappy decompression on the DPU.
+ *
+ * @param input: holds input buffer information
+ * @param output: holds output buffer information
+ * @return 1 if successful, 0 otherwise
+ */
+static int dpu_uncompress(host_buffer_context_t *input, host_buffer_context_t *output) {
+	// Allocate the DPUs
+    struct dpu_set_t dpus;
+    struct dpu_set_t dpu_rank;
+    struct dpu_set_t dpu;
+    DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpus));
+
+    DPU_ASSERT(dpu_load(dpus, DPU_PROGRAM, NULL));
+
+    // Calculate input length of only the decompressed stream
+	uint32_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
+	uint32_t output_offset[NR_DPUS][NR_TASKLETS] = {0};
+
+    uint32_t dpu_idx = 0;
+    DPU_RANK_FOREACH(dpus, dpu_rank) {
+        uint32_t starting_dpu_idx = dpu_idx;
+        DPU_FOREACH(dpu_rank, dpu) {
+            // Check to get rid of array bounds compiler warning
+            if (dpu_idx >= NR_DPUS)
+                break;
+
+			uint32_t input_length = input->length - (input->curr - input->buffer);
+            DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length), sizeof(uint32_t)));
+            DPU_ASSERT(dpu_copy_to(dpu, "output_length", 0, &(output->length), sizeof(uint32_t)));
+
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)(input->curr + input_offset[dpu_idx][0])));
+            dpu_idx++;
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "input_buffer", 0, ALIGN(input->length, 8), DPU_XFER_DEFAULT));
+
+        dpu_idx = starting_dpu_idx;
+        DPU_FOREACH(dpu_rank, dpu) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)input_offset[dpu_idx]));
+            dpu_idx++;
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "input_offset", 0, sizeof(uint32_t) * NR_TASKLETS, DPU_XFER_DEFAULT));
+
+        dpu_idx = starting_dpu_idx;
+        DPU_FOREACH(dpu_rank, dpu) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)output_offset[dpu_idx]));
+            dpu_idx++;
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "output_offset", 0, sizeof(uint32_t) * NR_TASKLETS, DPU_XFER_DEFAULT));
+    }
+
+    // Launch all DPUs
+    int ret = dpu_launch(dpus, DPU_SYNCHRONOUS);
+    if (ret != 0)
+    {
+        DPU_ASSERT(dpu_free(dpus));
+        return false;
+    }
+
+    // Deallocate the DPUs
+    dpu_idx = 0;
+    DPU_RANK_FOREACH(dpus, dpu_rank) {
+        DPU_FOREACH(dpu_rank, dpu) {
+            // Get the results back from the DPU
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)(output->buffer + output_offset[dpu_idx][0])));
+            dpu_idx++;
+        }
+
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_FROM_DPU, "output_buffer", 0, ALIGN(output->length, 8), DPU_XFER_DEFAULT));
+    }
+
+    DPU_ASSERT(dpu_free(dpus));
+
+    return true;
+}
+
 int pim_decompress(const char *compressed, size_t compressed_length, char *uncompressed) {
-	printf("DECOMPRESS %d bytes\n", compressed_length);
 	// Setup input and output buffer contexts
 	host_buffer_context_t input = {
 		.buffer = (uint8_t *)compressed,
@@ -303,6 +383,5 @@ int pim_decompress(const char *compressed, size_t compressed_length, char *uncom
 		return false;
 	}
 
-	// Call host implementation 
-	return host_uncompress(&input, &output);
+	return dpu_uncompress(&input, &output);
 }

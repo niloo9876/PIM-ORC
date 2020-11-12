@@ -93,9 +93,6 @@ option(SNAPPY_REQUIRE_AVX2 "Target processors with AVX2 support." OFF)
 option(SNAPPY_INSTALL "Install Snappy's header and library" ON)
 
 option(USE_PIM "Use the DPUs to execute Snappy" OFF)
-if (USE_PIM)
-	add_definitions(-DUSE_PIM=1)
-endif()
 
 include(TestBigEndian)
 test_big_endian(SNAPPY_IS_BIG_ENDIAN)
@@ -209,8 +206,6 @@ target_sources(snappy
     "snappy-sinksource.cc"
     "snappy-stubs-internal.cc"
     "snappy.cc"
-	"pim-snappy/pim_snappy.c"
-	"pim-snappy/pim_snappy.h"
     "${PROJECT_BINARY_DIR}/config.h"
 
   # Only CMake 3.3+ supports PUBLIC sources in targets exported by "install".
@@ -228,6 +223,29 @@ target_include_directories(snappy
     $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>
     $<INSTALL_INTERFACE:include>
 )
+
+if (USE_PIM)
+	# Add the PIM files to the build
+	target_sources(snappy
+  		PRIVATE
+		"pim-snappy/pim_snappy.c"
+		"pim-snappy/pim_snappy.h"
+    )
+
+    if (NOT NR_DPUS)
+		set(NR_DPUS 1)
+    endif()
+    if (NOT NR_TASKLETS)
+		set(NR_TASKLETS 1)
+	endif()
+
+	# Get the include path for the DPU library
+	execute_process(COMMAND dpu-pkg-config --cflags dpu
+					OUTPUT_VARIABLE DPU_OPTS)
+
+	# Add additional DPU-specific defines 
+	add_definitions(-DUSE_PIM=1 -DNR_DPUS=${NR_DPUS} -DNR_TASKLETS=${NR_TASKLETS} -DDPU_PROGRAM=${DPU_PROGRAM} ${DPU_OPTS})
+endif()
 
 set_target_properties(snappy
   PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})

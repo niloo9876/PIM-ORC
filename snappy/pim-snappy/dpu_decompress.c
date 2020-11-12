@@ -131,7 +131,7 @@ static inline uint32_t read_long_literal_size(struct in_buffer_context *input, u
  * @param output: holds output buffer information
  * @param len: length of data to copy over
  */
-static void writer_append_dpu(struct in_buffer_context *input, struct out_buffer_context *output, uint16_t len)
+static void writer_append_dpu(struct in_buffer_context *input, struct out_buffer_context *output, uint32_t len)
 {
 	uint32_t curr_index = output->curr - output->append_window;
 	while (len)
@@ -228,13 +228,13 @@ snappy_status dpu_uncompress(struct in_buffer_context *input, struct out_buffer_
 	while (input->curr < input->length) 
 	{
 		// Read the compressed block size
-		uint32_t compressed_size = READ_BYTE(input) |
-						(READ_BYTE(input) << 8) |
-						(READ_BYTE(input) << 16) |
-						(READ_BYTE(input) << 24);
-		uint32_t block_end = input->curr + compressed_size;
+//		uint32_t compressed_size = READ_BYTE(input) |
+//						(READ_BYTE(input) << 8) |
+//						(READ_BYTE(input) << 16) |
+//						(READ_BYTE(input) << 24);
+//		uint32_t block_end = input->curr + compressed_size;
 
-		while (input->curr < block_end) {
+//		while (input->curr < block_end) {
 			uint32_t length;
 			uint32_t offset;
 			uint8_t tag;
@@ -283,7 +283,7 @@ snappy_status dpu_uncompress(struct in_buffer_context *input, struct out_buffer_
 					return SNAPPY_INVALID_INPUT;
 				break;
 			}
-		}
+//		}
 	}
 
 	// Write out the final buffer
@@ -293,7 +293,7 @@ snappy_status dpu_uncompress(struct in_buffer_context *input, struct out_buffer_
 			len_final = OUT_BUFFER_LENGTH;
 
 		dbg_printf("Writing window at: 0x%x (%u bytes)\n", output->append_window, len_final);
-		mram_write(output->append_ptr, &output->buffer[output->append_window], len_final);
+		mram_write(output->append_ptr, &output->buffer[output->append_window], ALIGN(len_final, 8));
 	}
 	return SNAPPY_OK;
 }
