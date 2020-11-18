@@ -198,6 +198,16 @@ configure_file(
   "snappy-stubs-public.h.in"
   "${PROJECT_BINARY_DIR}/snappy-stubs-public.h")
 
+# Need to add the link directory before creating the snappy target
+if (USE_PIM)
+	# Get the DPU library and include paths
+	INCLUDE(FindPkgConfig)
+	pkg_check_modules(DPU REQUIRED dpu)
+
+	include_directories(${DPU_INCLUDE_DIRS})
+	link_directories(${DPU_LIBRARY_DIRS})
+endif()
+
 add_library(snappy "")
 target_sources(snappy
   PRIVATE
@@ -239,12 +249,10 @@ if (USE_PIM)
 		set(NR_TASKLETS 1)
 	endif()
 
-	# Get the include path for the DPU library
-	execute_process(COMMAND dpu-pkg-config --cflags dpu
-					OUTPUT_VARIABLE DPU_OPTS)
+	target_link_libraries(snappy ${DPU_LIBRARIES})
 
 	# Add additional DPU-specific defines 
-	add_definitions(-DUSE_PIM=1 -DNR_DPUS=${NR_DPUS} -DNR_TASKLETS=${NR_TASKLETS} -DDPU_PROGRAM=${DPU_PROGRAM} ${DPU_OPTS})
+	add_definitions(-DUSE_PIM=1 -DNR_DPUS=${NR_DPUS} -DNR_TASKLETS=${NR_TASKLETS} -DDPU_PROGRAM=${DPU_PROGRAM})
 endif()
 
 set_target_properties(snappy
