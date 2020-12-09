@@ -895,6 +895,7 @@ class SnappyDecompressor {
           // will not return true unless there's already at least five spare
           // bytes in addition to the literal.
           preload = static_cast<uint8_t>(*ip);
+
           continue;
         }
         if (SNAPPY_PREDICT_FALSE(literal_length >= 61)) {
@@ -1401,6 +1402,7 @@ class SnappyArrayWriter {
 
 bool RawUncompress(const char* compressed, size_t compressed_length,
                    char* uncompressed) {
+printf("DECOMPRESS %ld\n", compressed_length);
 #if (USE_PIM == 0)
   ByteArraySource reader(compressed, compressed_length);
   return RawUncompress(&reader, uncompressed);

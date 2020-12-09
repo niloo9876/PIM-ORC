@@ -14,7 +14,7 @@ clean:
 
 NR_DPUS = 1
 NR_TASKLETS = 1
-USE_PIM = OFF
+USE_PIM = 0
 
 SNAPPY_HOME := $(shell cd ../snappy; pwd)
 DPU_PROGRAM := \"$(SNAPPY_HOME)/pim-snappy/decompress.dpu\"
@@ -35,8 +35,8 @@ $(APACHE_ORC_LIB):
 	mkdir -p build
 	cd build && export SNAPPY_HOME=$(SNAPPY_HOME) && cmake -DBUILD_JAVA=OFF ../../orc && make -j4 package
 
-INCLUDES := -I../orc/c++/include -I../orc/c++/src -I../orc/c++/src/sargs -I../orc/c++/src/wrap -I $(shell pwd)
+INCLUDES := -I../snappy -I../orc/c++/include -I../orc/c++/src -I../orc/c++/src/sargs -I../orc/c++/src/wrap -I $(shell pwd)
 LIBS = $(shell find . -name *.a)
 
 reader: $(SOURCE) $(SNAPPY_LIB) $(APACHE_ORC_LIB)
-	$(CC) $(CFLAGS) -o $@ $(SOURCE) $(INCLUDES) $(LIBS) $(DPU_OPTS)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE) -DUSE_PIM=$(USE_PIM) $(INCLUDES) $(LIBS) $(DPU_OPTS)

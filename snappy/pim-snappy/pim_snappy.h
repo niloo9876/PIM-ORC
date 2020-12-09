@@ -4,7 +4,8 @@
 #ifdef __cplusplus
 	extern "C" {
 #endif
-
+		int pim_init(void);
+		void pim_deinit(void);
 		int pim_decompress(const char *compressed, size_t compressed_length, char *uncompressed);
 #ifdef __cplusplus
 	}

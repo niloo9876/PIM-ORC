@@ -1,6 +1,7 @@
 #include "orc/OrcFile.hh"
 #include "orc/ColumnPrinter.hh"
 #include "orc/Statistics.hh"
+#include "pim-snappy/pim_snappy.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,6 +87,11 @@ int main(int argc, char *argv[]) {
 		exit(1);
 	}
 
+	// Start the DPU thread
+#ifdef USE_PIM
+	pim_init();
+#endif
+
 	// Do some initial processing of the file to find where to break it up
 	ORC_UNIQUE_PTR<InputStream> inStream = readLocalFile(input_file);
 	ReaderOptions readerOpts;
@@ -145,5 +151,9 @@ int main(int argc, char *argv[]) {
 
 	free(thread_args);
 	free(threads);	
+
+#ifdef USE_PIM
+	pim_deinit();
+#endif
 	return 0;
 }
