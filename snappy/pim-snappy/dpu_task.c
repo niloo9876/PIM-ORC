@@ -40,6 +40,7 @@ int main()
 	
 	// Check that this tasklet has work to run 
 	if (input_length[idx] == 0) {
+		output_length[idx] = 0;
 		printf("Tasklet %d has nothing to run\n", idx);
 		return 0;
 	}
