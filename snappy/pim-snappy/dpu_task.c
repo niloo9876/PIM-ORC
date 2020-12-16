@@ -25,6 +25,10 @@ int main()
 	struct in_buffer_context input;
 	struct out_buffer_context output;
 	uint8_t idx = me();
+	if (idx == 0) {
+		// Clear the heap
+		mem_reset();
+	}
 
 #ifdef COUNT_CYC
 	perfcounter_config(COUNT_CYCLES, (idx == 0)? true : false);

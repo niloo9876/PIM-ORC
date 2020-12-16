@@ -191,8 +191,9 @@ printf("done %d %d\n", output_length, req_idx);
 			// Set up the transfer
 			DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)args->caller_args[req_idx]->output->curr));
 		}
-
+printf("start\n");
 		DPU_ASSERT(dpu_push_xfer(*dpu_rank, DPU_XFER_FROM_DPU, "output_buffer", i * MAX_OUTPUT_SIZE, ALIGN(max_output_length, 8), DPU_XFER_DEFAULT));
+		printf("done\n");
 	}
 }
 
@@ -233,7 +234,7 @@ static void * dpu_uncompress(void *arg) {
 
 		// If any previously dispatched requests are done, read back the data
 		uint32_t rank_id = 0;
-    	struct dpu_set_t dpu_rank;
+		struct dpu_set_t dpu_rank;
 		DPU_RANK_FOREACH(dpus, dpu_rank) {
 			if (ranks_dispatched & (1 << rank_id)) {
 				if (free_ranks & (1 << rank_id)) {
@@ -269,14 +270,14 @@ static void * dpu_uncompress(void *arg) {
 
 int pim_init(void) {
 	// Allocate all DPUs, then check how many were allocated
-    DPU_ASSERT(dpu_alloc(1, NULL, &dpus));
+	DPU_ASSERT(dpu_alloc(DPU_ALLOCATE_ALL, NULL, &dpus));
 	
 	dpu_get_nr_ranks(dpus, &num_ranks);
 	dpu_get_nr_dpus(dpus, &num_dpus);
 	total_request_slots = num_dpus * NR_TASKLETS;
 
 	// Load the program to all DPUs
-    DPU_ASSERT(dpu_load(dpus, DPU_PROGRAM, NULL));
+	DPU_ASSERT(dpu_load(dpus, DPU_PROGRAM, NULL));
 
 	// Create the DPU master host thread
 	args.stop_thread = 0;
@@ -311,7 +312,7 @@ int pim_init(void) {
 }
 
 void pim_deinit(void) {
-    // Signal to terminate the dpu master thread
+	// Signal to terminate the dpu master thread
 	pthread_mutex_lock(&mutex);
 	args.stop_thread = 1;
 	pthread_mutex_unlock(&mutex);
@@ -372,7 +373,7 @@ int pim_decompress(const char *compressed, size_t compressed_length, char *uncom
 	args.caller_args[args.req_head] = &m_args;
 	printf("Request inputted, idx %d\n", args.req_head);
 	args.req_head = (args.req_head + 1) % total_request_slots;
-    args.req_count++;
+	args.req_count++;
 	args.req_waiting++;
 	pthread_cond_broadcast(&dpu_cond);
 

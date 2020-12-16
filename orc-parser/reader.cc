@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	// Start the DPU thread
-#ifdef USE_PIM
+#if USE_PIM
 	pim_init();
 #endif
 
@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
 
 	// Get the number of stripes in the file
 	const uint64_t num_stripes = reader->getNumberOfStripes();
-	
+	std::cout << "NUM strips " << num_stripes << std::endl;	
 	// Don't make more threads than there stripes
 	uint64_t active_threads = MIN(num_threads, num_stripes);
 	struct thread_args *thread_args = (struct thread_args *)malloc(sizeof(struct thread_args) * active_threads);
@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
 	free(thread_args);
 	free(threads);	
 
-#ifdef USE_PIM
+#if USE_PIM
 	pim_deinit();
 #endif
 	return 0;

@@ -12,31 +12,32 @@ clean:
 	rm ./reader
 	rm -rf build/
 
-NR_DPUS = 1
 NR_TASKLETS = 1
 USE_PIM = 0
 
-SNAPPY_HOME := $(shell cd ../snappy; pwd)
-DPU_PROGRAM := \"$(SNAPPY_HOME)/pim-snappy/decompress.dpu\"
+SNAPPY_HOME := $(shell pwd)/build/snappy
+SNAPPY_SRC  := $(shell cd ../snappy; pwd)
+DPU_PROGRAM := \"$(SNAPPY_SRC)/pim-snappy/decompress.dpu\"
 
 SNAPPY_LIB := ../build/snappy/libsnappy.a
 $(SNAPPY_LIB):
-	cd $(SNAPPY_HOME)/pim-snappy && make NR_DPUS=$(NR_DPUS) NR_TASKLETS=$(NR_TASKLETS)
+	cd $(SNAPPY_SRC)/pim-snappy && make NR_TASKLETS=$(NR_TASKLETS)
 	mkdir -p build
 	cd build && mkdir -p snappy
-	cd build/snappy && cmake -DUSE_PIM=$(USE_PIM) -DNR_DPUS=$(NR_DPUS) -DNR_TASKLETS=$(NR_TASKLETS) -DDPU_PROGRAM=$(DPU_PROGRAM) ../../../snappy && make 
-	cp build/snappy/snappy-stubs-public.h ../snappy
-	cp build/snappy/libsnappy.a ../snappy
+	cd build/snappy && cmake -DUSE_PIM=$(USE_PIM) -DNR_TASKLETS=$(NR_TASKLETS) -DDPU_PROGRAM=$(DPU_PROGRAM) -DCMAKE_INSTALL_PREFIX=$(SNAPPY_HOME) -DCMAKE_INSTALL_LIBDIR=$(SNAPPY_HOME) ../../../snappy && make 
 
 APACHE_ORC_LIB := build/c++/src/liborc.a
 $(APACHE_ORC_LIB):
 	cp ../orc/c++/include/orc/orc-config.hh.in ../orc/c++/include/orc/orc-config.hh
 	sed -i 's/cmakedefine/define/g' ../orc/c++/include/orc/orc-config.hh
 	mkdir -p build
-	cd build && export SNAPPY_HOME=$(SNAPPY_HOME) && cmake -DBUILD_JAVA=OFF ../../orc && make -j4 package
+	cd build && cmake -DBUILD_JAVA=OFF -DSNAPPY_HOME=$(SNAPPY_HOME) -DSNAPPY_INCLUDE_DIR=$(SNAPPY_SRC) ../../orc && make -j4 package
 
 INCLUDES := -I../snappy -I../orc/c++/include -I../orc/c++/src -I../orc/c++/src/sargs -I../orc/c++/src/wrap -I $(shell pwd)
+
 LIBS = $(shell find . -name *.a)
+#LIBS = $(shell find . -name *.a | sed 's/.*lib/-l/' | sed 's/\.a//')
+#LIB_DIRS = $(shell find . -name *.a -exec dirname {} \; | sed 's/^/-L/')
 
 reader: $(SOURCE) $(SNAPPY_LIB) $(APACHE_ORC_LIB)
-	$(CC) $(CFLAGS) -o $@ $(SOURCE) -DUSE_PIM=$(USE_PIM) $(INCLUDES) $(LIBS) $(DPU_OPTS)
+	$(CC) $(CFLAGS) -o $@ $(SOURCE) $(LIBS) -DUSE_PIM=$(USE_PIM) $(INCLUDES) -lsnappy -L./build/snappy $(DPU_OPTS)
