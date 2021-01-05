@@ -23,6 +23,11 @@ struct thread_args {
 	uint64_t sum;
 };
 
+/**
+ * Stripe reader thread.
+ *
+ * @param arg: pointer to thread_args struct
+ */
 void *read_thread(void *arg) {
 	struct thread_args *args = (struct thread_args *)arg;
 
@@ -99,11 +104,14 @@ int main(int argc, char *argv[]) {
 
 	// Get the number of stripes in the file
 	const uint64_t num_stripes = reader->getNumberOfStripes();
-	std::cout << "NUM strips " << num_stripes << std::endl;	
+
 	// Don't make more threads than there stripes
 	uint64_t active_threads = MIN(num_threads, num_stripes);
 	struct thread_args *thread_args = (struct thread_args *)malloc(sizeof(struct thread_args) * active_threads);
 	pthread_t *threads = (pthread_t *)malloc(sizeof(pthread_t) * active_threads);
+
+	std::cout << "Num stripes: " << num_stripes << "\n";
+	std::cout << "Num threads: " << active_threads << "\n";
 
 	uint64_t num_stripes_per_thread = num_stripes / active_threads;
 	uint64_t leftover_stripes = num_stripes % active_threads;
@@ -146,7 +154,6 @@ int main(int argc, char *argv[]) {
 		pthread_join(threads[i], NULL);
 		total_sum += thread_args[i].sum;
 	}
-	std::cout << "Num threads: " << active_threads << "\n";
 	std::cout << "Sum first col: " << total_sum << "\n";		
 
 	free(thread_args);

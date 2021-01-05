@@ -36,8 +36,6 @@ $(APACHE_ORC_LIB):
 INCLUDES := -I../snappy -I../orc/c++/include -I../orc/c++/src -I../orc/c++/src/sargs -I../orc/c++/src/wrap -I $(shell pwd)
 
 LIBS = $(shell find . -name *.a)
-#LIBS = $(shell find . -name *.a | sed 's/.*lib/-l/' | sed 's/\.a//')
-#LIB_DIRS = $(shell find . -name *.a -exec dirname {} \; | sed 's/^/-L/')
 
 reader: $(SOURCE) $(SNAPPY_LIB) $(APACHE_ORC_LIB)
 	$(CC) $(CFLAGS) -o $@ $(SOURCE) $(LIBS) -DUSE_PIM=$(USE_PIM) $(INCLUDES) -lsnappy -L./build/snappy $(DPU_OPTS)

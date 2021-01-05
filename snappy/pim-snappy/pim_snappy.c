@@ -15,8 +15,12 @@
 #include "pim_snappy.h"
 #include "PIM-common/common/include/common.h"
 
-#define REQUESTS_TO_WAIT_FOR 1
-#define MAX_TIME_WAIT 0.25
+// Parameters to tune
+#define REQUESTS_TO_WAIT_FOR 3 // Number of requests to wait for before sending
+#define MAX_TIME_WAIT_MS 5     // Time in ms to wait before sending current requests
+#define MAX_TIME_WAIT_S (MAX_TIME_WAIT_MS / 1000)
+
+// TODO: consolidate these with what is in dpu_task.c, should be in one place
 #define MAX_INPUT_SIZE (256 * 1024)
 #define MAX_OUTPUT_SIZE (512 * 1024)
 
@@ -25,28 +29,29 @@ typedef struct host_buffer_context
 {
     char *buffer;        // Entire buffer
     char *curr;          // Pointer to current location in buffer
-    uint32_t length;        // Length of buffer
+    uint32_t length;     // Length of buffer
 } host_buffer_context_t;
 
 // Arguments passed by a particular thread
 typedef struct caller_args {
-	int data_ready;
+	int data_ready;	               // 1 if request is waiting, 0 once request is handled
 	host_buffer_context_t *input;  // Input buffer
 	host_buffer_context_t *output; // Output buffer
-	int retval;
+	int retval;                    // Return error code from processing request
 } caller_args_t;
 
+// Argument to DPU handler thread
 typedef struct master_args {
-	int stop_thread;		// Set to 1 to end dpu_master_thread
-	uint32_t req_head;			// Next slot availble in caller_args
-	uint32_t req_tail;			// Next slot to be loaded to DPU in caller_args
-	uint32_t req_tail_dispatched;// 
-	uint32_t req_count;			// Number of occupied slots in caller_args
-	uint32_t req_waiting;		// Number of requests waiting that haven't been dispatched
-	caller_args_t **caller_args;
+	int stop_thread;                // Set to 1 to end dpu_master_thread
+	uint32_t req_head;              // Next free slot in caller_args
+	uint32_t req_tail;              // Next busy slot in caller_args
+	uint32_t req_tail_dispatched;   // Next slot to be loaded to DPU in caller_args 
+	uint32_t req_count;             // Number of occupied slots in caller_args
+	uint32_t req_waiting;           // Number of requests waiting that haven't been dispatched
+	caller_args_t **caller_args;    // Request buffer
 } master_args_t;
 
-// Stores allocated DPUs
+// Stores number of allocated DPUs
 static struct dpu_set_t dpus;
 static uint32_t num_ranks = 0;
 static uint32_t num_dpus = 0;
@@ -114,6 +119,12 @@ static void get_free_ranks(uint32_t* free_ranks) {
 	}
 }
 
+/**
+ * Load a set of requests to a DPU rank.
+ *
+ * @param dpu_rank: pointer to the rank handle to load to
+ * @param args: pointer to the DPU handler thread args
+ */
 static void load_rank(struct dpu_set_t *dpu_rank, master_args_t *args) {
 	uint32_t idx = args->req_tail_dispatched;
 	uint32_t start_idx = args->req_tail_dispatched;
@@ -133,7 +144,7 @@ static void load_rank(struct dpu_set_t *dpu_rank, master_args_t *args) {
 		DPU_FOREACH(*dpu_rank, dpu) {
 			if (idx == args->req_head)
 				break;
-printf("load %d\n", idx); 
+
 			DPU_ASSERT(dpu_copy_to(dpu, "req_idx", i * sizeof(uint32_t), &idx, sizeof(uint32_t)));
 
 			uint32_t input_length = args->caller_args[idx]->input->length - (args->caller_args[idx]->input->curr - args->caller_args[idx]->input->buffer);
@@ -148,6 +159,7 @@ printf("load %d\n", idx);
 		}
 
 		// Copy the input buffer 
+		// TODO: adjust how this is done so we don't have to malloc a massive buffer every time
 		idx = start_idx;
 		uint32_t dpu_count = 0;
 		uint8_t *buf = malloc(max_input_length * total_dpu_count);
@@ -175,6 +187,12 @@ printf("load %d\n", idx);
 	dpu_launch(*dpu_rank, DPU_ASYNCHRONOUS);
 }
 
+/**
+ * Unload the finished requests off of a ran.
+ *
+ * @param dpu_rank: pointer to DPU rank handle to unload
+ * @param args: pointer to the DPU handler thread args
+ */
 static void unload_rank(struct dpu_set_t *dpu_rank, master_args_t *args) {
 	struct dpu_set_t dpu;
 	for (int i = 0; i < NR_TASKLETS; i++) {
@@ -190,6 +208,8 @@ static void unload_rank(struct dpu_set_t *dpu_rank, master_args_t *args) {
 			total_dpu_count++;
 		}
 
+		// Get the decompressed buffer
+		// TODO: update how this is done so we don't need to malloc massive buffer
 		uint32_t dpu_count = 0;
 		uint8_t *buf = malloc(max_output_length * total_dpu_count);
 		DPU_FOREACH(*dpu_rank, dpu) {
@@ -211,7 +231,8 @@ static void unload_rank(struct dpu_set_t *dpu_rank, master_args_t *args) {
 			// Get the request index
 			uint32_t req_idx = 0;
 			DPU_ASSERT(dpu_copy_from(dpu, "req_idx", i * sizeof(uint32_t), &req_idx, sizeof(uint32_t)));
-			// TODO fix this in case a batch is skipped
+
+			// TODO fix this in case the ranks don't complete out of order
 			if (req_idx == args->req_tail) {
 				args->req_count--;
 				args->req_tail = (args->req_tail + 1) % total_request_slots;
@@ -230,14 +251,23 @@ static void unload_rank(struct dpu_set_t *dpu_rank, master_args_t *args) {
 	}
 }
 
-double timediff(struct timeval *start, struct timeval *end) {
+/**
+ * Calculate the time difference in seconds between start and end.
+ *
+ * @param start: start time
+ * @param end: end time
+ * @return difference in seconds
+ */
+static inline double timediff(struct timeval *start, struct timeval *end) {
 	double start_time = start->tv_sec + start->tv_usec / 1000000.0;
 	double end_time = end->tv_sec + end->tv_usec / 1000000.0;
 	return (end_time - start_time);
 }
 
 /**
- * Perform the Snappy decompression on the DPU.
+ * DPU Hander Thread
+ *
+ * @param arg: pointer to master_args_t structure
  */
 static void * dpu_uncompress(void *arg) {
 	// Get the thread arguments
@@ -247,17 +277,21 @@ static void * dpu_uncompress(void *arg) {
 	struct timeval first, second;
 	uint32_t ranks_dispatched = 0;
 	while (args->stop_thread != 1) { 
-		// Wait until there are enough queued requests
 		pthread_mutex_lock(&mutex);
 
 		gettimeofday(&first, NULL);
 		gettimeofday(&second, NULL);
-		while ((args->req_waiting < REQUESTS_TO_WAIT_FOR) && (timediff(&first, &second) < MAX_TIME_WAIT)) {
-			time_to_wait.tv_sec = second.tv_sec;
-			time_to_wait.tv_nsec = (second.tv_usec + 5 * 1000) * 1000; // Wait 5ms
 
-			pthread_cond_timedwait(&dpu_cond, &mutex, &time_to_wait);
-			gettimeofday(&second, NULL);
+		time_to_wait.tv_sec = second.tv_sec;
+		time_to_wait.tv_nsec = (second.tv_usec + MAX_TIME_WAIT_MS * 1000) * 1000; // Wait MAX_TIME_WAIT_MS
+		
+		pthread_cond_timedwait(&dpu_cond, &mutex, &time_to_wait);
+		
+		// Check if our conditions to send the requests are satisfied
+		bool send_req = false;
+		gettimeofday(&second, NULL);
+		if ((args->req_waiting >= REQUESTS_TO_WAIT_FOR) || (timediff(&first, &second) >= MAX_TIME_WAIT_S)) {
+			send_req = true;
 		}
 		pthread_mutex_unlock(&mutex);
 
@@ -286,20 +320,27 @@ static void * dpu_uncompress(void *arg) {
 
 		// Dispatch all the requests we currently have
 		rank_id = 0;	
-		DPU_RANK_FOREACH(dpus, dpu_rank) {
-			if ((free_ranks & (1 << rank_id)) && args->req_waiting) {
-				pthread_mutex_lock(&mutex);
-				load_rank(&dpu_rank, args); 
-				pthread_mutex_unlock(&mutex);
+		if (send_req) {
+			DPU_RANK_FOREACH(dpus, dpu_rank) {
+				if ((free_ranks & (1 << rank_id)) && args->req_waiting) {
+					pthread_mutex_lock(&mutex);
+					load_rank(&dpu_rank, args); 
+					pthread_mutex_unlock(&mutex);
 
-				ranks_dispatched |= (1 << rank_id);
+					ranks_dispatched |= (1 << rank_id);
+				}
+				rank_id++;
 			}
-			rank_id++;
 		}
 	}	
 
 	return NULL;
 }
+
+
+/*************************************************/
+/*                Public Functions               */
+/*************************************************/
 
 int pim_init(void) {
 	// Allocate all DPUs, then check how many were allocated
@@ -325,7 +366,7 @@ int pim_init(void) {
 		return -1;
 	}
 
-	// Create mutex and condition variable for calling threads
+	// Create mutex
 	if (pthread_mutex_init(&mutex, NULL) != 0) {
 		fprintf(stderr, "Failed to create mutex\n");
 		return -1;
@@ -353,6 +394,7 @@ void pim_deinit(void) {
 
 	pthread_join(dpu_master_thread, NULL);
 
+	// Free the DPUs
 	DPU_ASSERT(dpu_free(dpus));
 	num_ranks = 0;
 	num_dpus = 0;
@@ -409,6 +451,7 @@ int pim_decompress(const char *compressed, size_t compressed_length, char *uncom
 	args.req_waiting++;
 	pthread_cond_broadcast(&dpu_cond);
 
+	// Wait for request to be processed
 	while (m_args.data_ready != 0) {
 		pthread_cond_wait(&caller_cond, &mutex);
 	}

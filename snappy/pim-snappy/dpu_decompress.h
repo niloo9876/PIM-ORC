@@ -1,7 +1,3 @@
-/**
- * Decompression on DPU.
- */
-
 #ifndef _DPU_DECOMPRESS_H_
 #define _DPU_DECOMPRESS_H_
 
@@ -53,12 +49,7 @@ typedef struct in_buffer_context
  * the file that exists in MRAM. According to the 'snappy' algorithm, bytes that
  * are appended to the output may be copies of previously written data. The data
  * that must be copied is likely to not be contained by our small append window
- * in WRAM, and therefore must be loaded into a second buffer - the read window.
- * The read window holds a read-only copy of previous data from the file and it
- * can point to any arbitrary (aligned) portion of previously written data. This
- * simplifies memcpy from WRAM to MRAM.
- *
- * TODO: reduce the size of these variables, where possible 
+ * in WRAM, and therefore must be loaded from MRAM in those cases.
  */
 typedef struct out_buffer_context
 {

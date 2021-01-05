@@ -227,7 +227,8 @@ snappy_status dpu_uncompress(struct in_buffer_context *input, struct out_buffer_
 	dbg_printf("output length: %u\n", output->length);
 	while (input->curr < input->length) 
 	{
-		// Read the compressed block size
+		// Read the compressed block size, commented out for now as we are using the original
+		// Snappy format and not our updated one
 //		uint32_t compressed_size = READ_BYTE(input) |
 //						(READ_BYTE(input) << 8) |
 //						(READ_BYTE(input) << 16) |

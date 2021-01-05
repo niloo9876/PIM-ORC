@@ -7,6 +7,7 @@
 
 // Comment out to count instructions
 #define COUNT_CYC
+
 #define MAX_INPUT_SIZE (256 * 1024)
 #define MAX_OUTPUT_SIZE (512 * 1024)
 
@@ -26,7 +27,8 @@ int main()
 	struct out_buffer_context output;
 	uint8_t idx = me();
 	if (idx == 0) {
-		// Clear the heap
+		// Clear the heap, needed since we restart the program without
+		// de-allocating and allocating the DPUs
 		mem_reset();
 	}
 
