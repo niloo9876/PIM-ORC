@@ -16,3 +16,4 @@ To execute the program, run the following command:
 ./reader -f [ORC input test file] -t [Maximum number of threads to use in the ORC reader, default is 1]
 ```
 The program output should look something like this:
+<img width="717" alt="orc-parser-output" src="https://user-images.githubusercontent.com/25714353/103724599-90008880-4f89-11eb-936a-2e2ed499f5e2.png">
