@@ -144,7 +144,7 @@ static void load_rank(struct dpu_set_t *dpu_rank, master_args_t *args) {
 		DPU_FOREACH(*dpu_rank, dpu) {
 			if (idx == args->req_head)
 				break;
-
+			DPU_ASSERT(dpu_log_read(dpu, stdout));
 			DPU_ASSERT(dpu_copy_to(dpu, "req_idx", i * sizeof(uint32_t), &idx, sizeof(uint32_t)));
 
 			uint32_t input_length = args->caller_args[idx]->input->length - (args->caller_args[idx]->input->curr - args->caller_args[idx]->input->buffer);
@@ -330,7 +330,7 @@ static void * dpu_uncompress(void *arg) {
 					gettimeofday(&x8, NULL);
 			
 					ranks_dispatched &= ~(1 << rank_id);
-					printf("%.5lf %.5lf %.5lf\n", timediff_ms(&x5,&x6), timediff_ms(&x6,&x7), timediff_ms(&x7,&x8));
+					// printf("%.5lf %.5lf %.5lf\n", timediff_ms(&x5,&x6), timediff_ms(&x6,&x7), timediff_ms(&x7,&x8));
 
 					// Signal that data is ready
 					pthread_cond_broadcast(&caller_cond);
