@@ -275,8 +275,11 @@ static void * dpu_uncompress(void *arg) {
 
 	struct timespec time_to_wait;
 	struct timeval first, second;
+
+	struct timeval x1, x2, x3, x4;
 	uint32_t ranks_dispatched = 0;
 	while (args->stop_thread != 1) { 
+		gettimeofday(&x1, NULL);
 		pthread_mutex_lock(&mutex);
 
 		gettimeofday(&first, NULL);
@@ -290,11 +293,12 @@ static void * dpu_uncompress(void *arg) {
 		// Check if our conditions to send the requests are satisfied
 		bool send_req = false;
 		gettimeofday(&second, NULL);
+		
 		if ((args->req_waiting >= REQUESTS_TO_WAIT_FOR) || (timediff(&first, &second) >= MAX_TIME_WAIT_S)) {
 			send_req = true;
 		}
 		pthread_mutex_unlock(&mutex);
-
+		gettimeofday(&x2, NULL);
 		// Get the list of ranks currently free
 		uint32_t free_ranks = 0;
 		get_free_ranks(&free_ranks);
@@ -317,7 +321,7 @@ static void * dpu_uncompress(void *arg) {
 			}
 			rank_id++;
 		}
-
+		gettimeofday(&x3, NULL);
 		// Dispatch all the requests we currently have
 		rank_id = 0;	
 		if (send_req) {
@@ -332,6 +336,8 @@ static void * dpu_uncompress(void *arg) {
 				rank_id++;
 			}
 		}
+		gettimeofday(&x4, NULL);
+		printf("%.5lf %.5lf %.5lf\n", timediff(&x1,&x2), timediff(&x2,&x3), timediff(&x3,&x4));
 	}	
 
 	return NULL;
