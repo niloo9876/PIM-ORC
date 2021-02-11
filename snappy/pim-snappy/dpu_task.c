@@ -6,7 +6,7 @@
 #include "dpu_decompress.h"
 
 // Comment out to count instructions
-#define COUNT_CYC
+#define COUNT_CYC 1
 
 #define MAX_INPUT_SIZE (256 * 1024)
 #define MAX_OUTPUT_SIZE (512 * 1024)

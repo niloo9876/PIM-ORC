@@ -288,7 +288,7 @@ static void * dpu_uncompress(void *arg) {
 	struct timespec time_to_wait;
 	struct timeval first, second;
 
-	struct timeval x1, x2, x3, x4;
+	struct timeval x1, x2, x3, x4, x5, x6, x7, x8;
 	uint32_t ranks_dispatched = 0;
 	while (args->stop_thread != 1) { 
 		gettimeofday(&x1, NULL);
@@ -321,11 +321,16 @@ static void * dpu_uncompress(void *arg) {
 		DPU_RANK_FOREACH(dpus, dpu_rank) {
 			if (ranks_dispatched & (1 << rank_id)) {
 				if (free_ranks & (1 << rank_id)) {
+					gettimeofday(&x5, NULL);
 					pthread_mutex_lock(&mutex);
+					gettimeofday(&x6, NULL);
 					unload_rank(&dpu_rank, args);
+					gettimeofday(&x7, NULL);
 					pthread_mutex_unlock(&mutex);
+					gettimeofday(&x8, NULL);
 			
 					ranks_dispatched &= ~(1 << rank_id);
+					printf("%.5lf %.5lf %.5lf\n", timediff_ms(&x5,&x6), timediff_ms(&x6,&x7), timediff_ms(&x7,&x8));
 
 					// Signal that data is ready
 					pthread_cond_broadcast(&caller_cond);
@@ -349,7 +354,7 @@ static void * dpu_uncompress(void *arg) {
 			}
 		}
 		gettimeofday(&x4, NULL);
-		printf("%.5lf %.5lf %.5lf\n", timediff_ms(&x1,&x2), timediff_ms(&x2,&x3), timediff_ms(&x3,&x4));
+		// printf("%.5lf %.5lf %.5lf\n", timediff_ms(&x1,&x2), timediff_ms(&x2,&x3), timediff_ms(&x3,&x4));
 	}	
 
 	return NULL;
