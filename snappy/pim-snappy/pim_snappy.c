@@ -265,6 +265,18 @@ static inline double timediff(struct timeval *start, struct timeval *end) {
 }
 
 /**
+ * Calculate the time difference in milliseconds between start and end.
+ *
+ * @param start: start time
+ * @param end: end time
+ * @return difference in seconds
+ */
+static inline double timediff_ms(struct timeval *start, struct timeval *end) {
+	return timediff(start, end) * 1000;
+}
+
+
+/**
  * DPU Hander Thread
  *
  * @param arg: pointer to master_args_t structure
@@ -337,7 +349,7 @@ static void * dpu_uncompress(void *arg) {
 			}
 		}
 		gettimeofday(&x4, NULL);
-		printf("%.5lf %.5lf %.5lf\n", timediff(&x1,&x2), timediff(&x2,&x3), timediff(&x3,&x4));
+		printf("%.5lf %.5lf %.5lf\n", timediff_ms(&x1,&x2), timediff_ms(&x2,&x3), timediff_ms(&x3,&x4));
 	}	
 
 	return NULL;
